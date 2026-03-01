@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.log
+.env
+.env.local
+.wwebjs_auth/
+.wwebjs_cache/
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.zip
+uploads/
+media/

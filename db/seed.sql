@@ -1,0 +1,2 @@
+-- Optional seed data (e.g. for development)
+-- INSERT INTO groups (external_id, name) VALUES ('example-group-id', 'Example Group');

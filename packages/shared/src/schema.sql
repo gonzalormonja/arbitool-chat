@@ -1,0 +1,2 @@
+-- Schema source of truth: see ../../db/migrations/001_initial.sql
+-- This file is optional; run migrations from db/migrations for a fresh DB.
