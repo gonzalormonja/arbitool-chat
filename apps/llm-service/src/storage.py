@@ -32,12 +32,20 @@ def fetch_unprocessed_messages(
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, group_id, content, message_type, media_path, message_date
-                FROM messages
-                WHERE group_id = %s AND processed_at IS NULL
-                  AND message_date >= COALESCE(%s::timestamptz, '-infinity'::timestamptz)
-                  AND message_date <= COALESCE(%s::timestamptz, 'infinity'::timestamptz)
-                ORDER BY message_date
+                SELECT 
+                    m.id, 
+                    m.group_id, 
+                    m.content, 
+                    m.message_type, 
+                    m.media_path, 
+                    m.message_date,
+                    p.display_name as sender_name
+                FROM messages m
+                LEFT JOIN participants p ON m.sender_id = p.id
+                WHERE m.group_id = %s AND m.processed_at IS NULL
+                  AND m.message_date >= COALESCE(%s::timestamptz, '-infinity'::timestamptz)
+                  AND m.message_date <= COALESCE(%s::timestamptz, 'infinity'::timestamptz)
+                ORDER BY m.message_date
                 LIMIT %s
                 """,
                 (group_id, from_date, to_date, limit),
@@ -78,7 +86,9 @@ def insert_trade(
                     json.dumps(raw_llm_response) if raw_llm_response else None,
                 ),
             )
-            return cur.fetchone()["id"]
+            trade_id = cur.fetchone()["id"]
+        conn.commit() # Important!
+        return trade_id
 
 
 def mark_messages_processed(message_ids: list[int]) -> None:

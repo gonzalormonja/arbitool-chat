@@ -138,13 +138,22 @@ export async function persistBackup(
   }
 
   if (entries.length > 0) {
-    const firstDate = entries[0]!.message_date;
-    const lastDate = entries[entries.length - 1]!.message_date;
-    await enqueueLlmProcess({
+    // Find min and max date across ALL entries, not just first/last
+    let minDate = entries[0]!.message_date;
+    let maxDate = entries[0]!.message_date;
+    for (const e of entries) {
+      if (e.message_date < minDate) minDate = e.message_date;
+      if (e.message_date > maxDate) maxDate = e.message_date;
+    }
+
+    const payload = {
       group_id: groupId,
-      from_date: firstDate.toISOString(),
-      to_date: lastDate.toISOString(),
-    });
+      from_date: minDate.toISOString(),
+      to_date: maxDate.toISOString(),
+    };
+    
+    console.log(`Enqueuing LLM job for group ${groupId}:`, payload);
+    await enqueueLlmProcess(payload);
   }
 
   return { groupId, messageIds: allIds };

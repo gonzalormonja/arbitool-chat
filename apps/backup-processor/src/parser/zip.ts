@@ -35,6 +35,7 @@ export async function parseZip(
   });
 
   const mediaByOrder: string[] = [];
+  const mediaMap = new Map<string, string>();
   let txtPath: string | null = null;
 
   async function walk(dir: string, base = ''): Promise<void> {
@@ -45,10 +46,12 @@ export async function parseZip(
       if (e.isDirectory()) await walk(full, rel);
       else if (e.name.endsWith('.txt')) txtPath = full;
       else if (MEDIA_EXT.test(e.name)) {
-        const outName = `backup_${mediaByOrder.length}${path.extname(e.name)}`;
+        const uniquePrefix = `${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+        const outName = `${uniquePrefix}_${e.name}`;
         const outPath = path.join(mediaDir, outName);
         await fs.promises.copyFile(full, outPath);
         mediaByOrder.push(outPath);
+        mediaMap.set(e.name, outPath);
       }
     }
   }
@@ -66,7 +69,13 @@ export async function parseZip(
   for await (const line of parseTxtStream(stream)) {
     const entry: ParsedEntry = { ...line };
     const isMedia = line.message_type !== MESSAGE_TYPE.TEXT;
-    if (isMedia && mediaIndex < mediaByOrder.length) {
+    
+    if (line.attachment_name) {
+      const mapped = mediaMap.get(line.attachment_name);
+      if (mapped) {
+        entry.media_path = mapped;
+      }
+    } else if (isMedia && mediaIndex < mediaByOrder.length) {
       entry.media_path = mediaByOrder[mediaIndex]!;
       mediaIndex++;
     }
