@@ -1,0 +1,5 @@
+venv/bin/pip install -r requirements.txt
+
+cd /home/gonzalo/Documentos/arbitool/arbitool-chat/apps/llm-service && ./run-worker.sh
+
+tail -f /home/gonzalo/Documentos/arbitool/arbitool-chat/apps/llm-service/worker.log

@@ -1,0 +1,52 @@
+IDEA PARA TENNATNS
+
+
+Hoy **no está pensado para múltiples clientes**. Es un solo “dueño”: un solo conjunto de grupos, un solo bot (un número) y los trades van solo por `group_id`, sin dueño/operador.
+
+Resumen de lo que hay y lo que te falta para tu modelo:
+
+---
+
+### Lo que hay hoy
+
+- **groups**: `id`, `external_id`, `name` (sin “dueño”).
+- **messages** y **trades**: ligados a `group_id` nada más.
+- **Bot**: un solo cliente WhatsApp (`apps/bot`), un número que escucha todos los grupos que le configures; no hay noción de “este número es del arbitrador X”.
+- **Backup**: al importar un ZIP solo pasás `--group-name` (y opcionalmente `--group-id`); no se asocia a ningún arbitrador ni “chat” de un operador.
+
+No existe:
+- tabla de arbitradores/operadores,
+- relación “qué número escucha qué grupos”,
+- relación “este grupo / este export es del arbitrador Y”,
+- forma de no mezclar ops de distintos operadores (porque todo vive en el mismo montón de grupos).
+
+---
+
+### Lo que necesitás para tu modelo
+
+1. **Arbitradores (tenants)**  
+   Una tabla tipo `operators` o `arbitradores` (id, nombre, etc.) para identificar a cada cliente/operador.
+
+2. **Saber qué número escucha qué grupos (y de quién)**  
+   Por ejemplo:
+   - Tabla de “instancias” o “números”: `whatsapp_instances` (id, identificador de sesión/número, `operator_id`).
+   - Que cada **grupo** esté asociado a un operador y (opcional) a una instancia: p.ej. `groups.operator_id` y, si querés, `groups.whatsapp_instance_id` (o link “esta instancia escucha estos groups”).  
+   Así podés saber: “este número escucha estos grupos y esos grupos son del arbitrador X”.
+
+3. **Asignar cada grupo (y cada export) a un arbitrador**  
+   - En vivo: cuando el bot entra a un grupo, tenés que decidir (por configuración o por regla) a qué `operator_id` pertenece ese grupo y guardarlo.  
+   - En backup: al importar, además de `--group-name` pasar algo como `--operator-id` (o nombre) para crear/asignar el grupo a ese arbitrador.  
+   Así las **ops** (trades) quedan ligadas a un grupo que ya está ligado a un operador: no mezclás ops de distintos arbitradores.
+
+4. **“Chat” para ordenar**  
+   Si para vos “chat” = un grupo de WhatsApp, con tener `groups.operator_id` ya tenés “estas ops son del grupo X del arbitrador Y”. Si “chat” es otra cosa (ej. un contenedor de varios grupos o de exports), haría falta una entidad extra (ej. `chats` con `operator_id`) y que grupos y/o exports se asocien a ese chat. En cualquier caso, la idea es: **cada mensaje/trade queda bajo un group (y opcionalmente un chat) que pertenece a un solo arbitrador**.
+
+---
+
+### Respuesta directa
+
+- **¿Está pensado para múltiples clientes?** **No.** Hoy es single-tenant.
+- **¿Puedo saber qué número escucha qué grupos de qué arbitrador?** **No.** Hay que agregar operadores, instancias de WhatsApp y relación grupo ↔ operador / instancia.
+- **¿Las ops del export se pueden asignar a un arbitrador y a un “chat”?** **No.** Hay que agregar `operator_id` (y opcionalmente “chat”) y que el backup processor reciba “a qué operador / chat” importar.
+
+Para no mezclar ops de diferentes operadores, el cambio mínimo es: **operadores + que cada `group` (y por tanto cada trade) tenga `operator_id`**, y en el backup poder indicar ese operador (y chat si lo tenés). Si querés, en el siguiente mensaje puedo bajar eso a un esquema concreto de tablas y campos (sin escribir código, solo diseño).

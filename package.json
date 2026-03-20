@@ -10,6 +10,7 @@
     "bot:build": "npm run build -w @arbitool/bot",
     "backup": "node apps/backup-processor/dist/index.js",
     "backup:build": "npm run build -w @arbitool/backup-processor",
+    "enqueue-llm-job": "node apps/backup-processor/dist/scripts/enqueue-llm-job.js",
     "build": "npm run build -w @arbitool/shared && npm run bot:build && npm run backup:build"
   },
   "engines": {

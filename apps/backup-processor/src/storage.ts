@@ -109,10 +109,16 @@ export async function closeDb(): Promise<void> {
   await pool.end();
 }
 
+export type PersistBackupOptions = {
+  /** If true, do not enqueue the LLM job (only insert messages). */
+  skipLlm?: boolean;
+};
+
 export async function persistBackup(
   groupExternalId: string,
   groupName: string,
-  entries: ParsedEntry[]
+  entries: ParsedEntry[],
+  options?: PersistBackupOptions
 ): Promise<{ groupId: number; messageIds: number[] }> {
   const groupId = await getOrCreateGroup(groupExternalId, groupName);
   const participantKey = new Map<string, number>();
@@ -137,7 +143,7 @@ export async function persistBackup(
     allIds.push(...ids);
   }
 
-  if (entries.length > 0) {
+  if (entries.length > 0 && !options?.skipLlm) {
     // Find min and max date across ALL entries, not just first/last
     let minDate = entries[0]!.message_date;
     let maxDate = entries[0]!.message_date;
@@ -151,7 +157,7 @@ export async function persistBackup(
       from_date: minDate.toISOString(),
       to_date: maxDate.toISOString(),
     };
-    
+
     console.log(`Enqueuing LLM job for group ${groupId}:`, payload);
     await enqueueLlmProcess(payload);
   }

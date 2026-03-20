@@ -13,7 +13,7 @@ export interface BackupResult {
   tempDir?: string;
 }
 
-const MEDIA_EXT = /\.(jpg|jpeg|png|gif|webp|mp4|ogg|mp3|m4a|webm)$/i;
+const MEDIA_EXT = /\.(jpg|jpeg|png|gif|webp|pdf|mp4|ogg|opus|mp3|m4a|webm)$/i;
 
 /**
  * Extract ZIP to a directory, then parse the .txt and correlate media by order.
@@ -63,15 +63,26 @@ export async function parseZip(
     return { entries: [] };
   }
 
+  function findMediaPath(attachmentName: string): string | undefined {
+    const exact = mediaMap.get(attachmentName);
+    if (exact) return exact;
+    // Fallback: match by suffix (e.g. ZIP has "Comprobante.pdf", txt has "00000027-Comprobante.pdf")
+    const base = path.basename(attachmentName);
+    for (const [k, v] of mediaMap) {
+      if (k === attachmentName || k.endsWith(base) || path.basename(k) === base) return v;
+    }
+    return undefined;
+  }
+
   const entries: ParsedEntry[] = [];
   let mediaIndex = 0;
   const stream = fs.createReadStream(txtPath, { encoding: 'utf8' });
   for await (const line of parseTxtStream(stream)) {
     const entry: ParsedEntry = { ...line };
     const isMedia = line.message_type !== MESSAGE_TYPE.TEXT;
-    
+
     if (line.attachment_name) {
-      const mapped = mediaMap.get(line.attachment_name);
+      const mapped = findMediaPath(line.attachment_name);
       if (mapped) {
         entry.media_path = mapped;
       }

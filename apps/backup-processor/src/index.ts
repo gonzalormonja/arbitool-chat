@@ -9,7 +9,12 @@ import { persistBackup } from './storage.js';
 import { closeDb } from './storage.js';
 import { closeQueue } from './queue.js';
 
-async function runTxt(filePath: string, groupName: string, groupId: string) {
+async function runTxt(
+  filePath: string,
+  groupName: string,
+  groupId: string,
+  skipLlm: boolean
+) {
   const entries: Awaited<ReturnType<typeof parseZip>>['entries'] = [];
   const stream = fs.createReadStream(filePath, { encoding: 'utf8' });
   for await (const line of parseTxtStream(stream)) {
@@ -19,24 +24,31 @@ async function runTxt(filePath: string, groupName: string, groupId: string) {
   const { groupId: gid, messageIds } = await persistBackup(
     groupId,
     groupName,
-    entries
+    entries,
+    { skipLlm }
   );
   console.log(
-    `Group id=${gid}, inserted ${messageIds.length} messages, LLM job enqueued.`
+    `Group id=${gid}, inserted ${messageIds.length} messages${skipLlm ? ' (LLM job skipped).' : ', LLM job enqueued.'}`
   );
 }
 
-async function runZip(filePath: string, groupName: string, groupId: string) {
+async function runZip(
+  filePath: string,
+  groupName: string,
+  groupId: string,
+  skipLlm: boolean
+) {
   const mediaDir = path.resolve(config.mediaPath);
   const { entries } = await parseZip(filePath, mediaDir);
   console.log(`Parsed ${entries.length} entries from ZIP ${filePath}`);
   const { groupId: gid, messageIds } = await persistBackup(
     groupId,
     groupName,
-    entries
+    entries,
+    { skipLlm }
   );
   console.log(
-    `Group id=${gid}, inserted ${messageIds.length} messages, LLM job enqueued.`
+    `Group id=${gid}, inserted ${messageIds.length} messages${skipLlm ? ' (LLM job skipped).' : ', LLM job enqueued.'}`
   );
 }
 
@@ -60,6 +72,11 @@ async function main() {
     .option('self-name', {
       type: 'string',
       description: 'Name to use for "You" in the export',
+    })
+    .option('no-llm', {
+      type: 'boolean',
+      default: false,
+      description: 'Only insert messages; do not enqueue LLM job',
     }).argv;
 
   const filePath = path.resolve(argv.file);
@@ -72,12 +89,13 @@ async function main() {
   const groupId =
     argv['group-id'] ??
     `backup-${groupName.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '').toLowerCase()}`;
+  const skipLlm = argv['no-llm'];
 
   try {
     if (filePath.toLowerCase().endsWith('.zip')) {
-      await runZip(filePath, groupName, groupId);
+      await runZip(filePath, groupName, groupId, skipLlm);
     } else {
-      await runTxt(filePath, groupName, groupId);
+      await runTxt(filePath, groupName, groupId, skipLlm);
     }
   } finally {
     await closeQueue();
